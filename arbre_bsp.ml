@@ -17,6 +17,11 @@ let random_int mn mx=
   (Random.int (mx+1-mn)) + mn
 ;;
 
+let rec rectangles_size bsp =
+  match bsp with
+    R(a) -> 1 | L(l,g,d) -> (rectangles_size g) + (rectangles_size d)
+
+
 let random_bsp width height depth_max =
 assert(depth_max>=0);
 let rec random_noeud depth parite xmin xmax ymin ymax =

@@ -13,6 +13,9 @@ R of color option
    avec dimensions fenetre et la profondeur maximale du bsp en parametre*)
 val random_bsp : int -> int -> int -> bsp
 
+(* Nombre de rectangles*)
+val rectangles_size : bsp -> int
+
 (* Renvoie la liste des rectangles en contact avec une ligne *)
 val rectangles_from_line : bsp -> bool -> bsp list
 
