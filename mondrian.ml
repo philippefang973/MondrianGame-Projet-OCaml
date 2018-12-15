@@ -24,7 +24,7 @@ let check_current bsp1 bsp2 =
       L(l,g,d),L(l',g',d') ->
       let couleur1 = line_color tmp1 parite in
       let couleur2 = line_color tmp2 parite in
-      if couleur1<>couleur2 then false
+      if couleur1<>couleur2 && l.colored=true then false
       else (aux g g' (not parite)) && (aux d d' (not parite))
     | _ -> true
   in aux bsp1 bsp2 true
@@ -81,6 +81,8 @@ let click_set_color bsp x y=
       else tmp
   in aux bsp true 0 (size_x()-1) 0 (size_y()-1)
 
+;;
+
 let main () =
 
   (* Reccueil de données*)
@@ -92,24 +94,54 @@ let main () =
   let depth = read_int() in
 
   (* Creation fenetre*)
-  let jeuFin = random_bsp longueur largeur depth in
-  let jeuCourant = ref (config_initial jeuFin) in
+  let jeuFin = ref (random_bsp longueur largeur depth) in
+  let jeuCourant = ref (config_initial !jeuFin) in
   open_graph (" "^(string_of_int longueur)^"x"^(string_of_int largeur));
   set_window_title "Mondrian";
-
+  let run = ref true in
+  while !run do
   (* boucle d'interaction *)
-  while not (is_full !jeuCourant) do
+  while not (is_full !jeuCourant && (check_current !jeuCourant !jeuFin)) do
     clear_graph();
     set_line_width 3;
-    draw_current_bsp !jeuCourant jeuFin;
+    draw_current_bsp !jeuCourant !jeuFin;
     synchronize();
     let e = wait_next_event [Button_down] in
     let x = e.mouse_x and y = e.mouse_y in
     jeuCourant := click_set_color !jeuCourant x y;
   done;
-  if check_current !jeuCourant jeuFin then
-  print_endline "Felicitation, c'était un bon remplissage!"
-  else print_endline "Malheureusement, ce n'était pas un bon remplissage"
+  clear_graph();
+  moveto ((size_x())/10) ((size_y())/2);
+  set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
+  set_color black;
+  set_text_size 100;
+  draw_string "Felicitations!";
+  moveto ((size_x())/10) ((size_y())/5);
+  draw_string "Recommencer";
+  let (u,v) = text_size "Recommencer" in
+  moveto ((size_x())/10) ((size_y())/5);
+  draw_rect (current_x()) (current_y()) u v;
+
+  moveto ((size_x())/10) ((size_y())/10);
+  draw_string "Quitter";
+  let (u',v') = text_size "Quitter" in
+  moveto ((size_x())/10) ((size_y())/10);
+  draw_rect (current_x()) (current_y()) u' v';
+
+  let e = wait_next_event [Button_down] in
+  if e.mouse_x>=(size_x()/10) && e.mouse_x<=(size_y()/10+u)
+     && e.mouse_y>=(size_y()/5) && e.mouse_y<=(size_y()/5+v)
+  then
+    begin
+    jeuFin := (random_bsp longueur largeur depth);
+    jeuCourant := (config_initial !jeuFin)
+    end
+    else if e.mouse_x>=(size_x()/10) && e.mouse_x<=(size_y()/10+u')
+            && e.mouse_y>=(size_y()/10) && e.mouse_y<=(size_y()/10+v') then
+    run := false;
+
+  done;
+
 ;;
 
 let _ = main ()
