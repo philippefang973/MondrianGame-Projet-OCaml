@@ -17,13 +17,12 @@ let random_int mn mx=
   (Random.int (mx+1-mn)) + mn
 ;;
 
-let rec rectangles_size bsp =
-  match bsp with
-    R(a) -> 1 | L(l,g,d) -> (rectangles_size g) + (rectangles_size d)
-
-
 let random_bsp width height depth_max =
-assert(depth_max>=0);
+  assert(depth_max>=0);
+  (* depth: profondeur généré, parite: type de ligne,
+     xmin et xmax: bornes de generation coord (lignes verticales)
+     ymin et ymax: bornes de generation coord (lignes horizontales)
+  *)
 let rec random_noeud depth parite xmin xmax ymin ymax =
   if depth=0 || xmin>xmax || ymin>ymax then if (Random.bool()) then
       R(Some (rgb 0 0 150)) else R(Some (rgb 150 0 0))
@@ -41,6 +40,9 @@ in random_noeud depth_max true size (width-size) size (height-size)
 ;;
 
 let rectangles_from_line bsp parite =
+  (*bsp_tmp: noeud courant, parite: type de ce noeud,
+    b: compter les rectangles de fils gauche ou de fils droit
+  *)
   let rec aux bsp_tmp parite_tmp b =
     match bsp_tmp with
       R(a) -> [R(a)]
@@ -56,6 +58,9 @@ let rectangles_from_line bsp parite =
   | _ -> [bsp]
 
 let line_color line parite=
+  (* count_blue: nombre de rect. bleus, count_red: nombre de rect. rouges
+  l: listes des rectangles en contact de la ligne
+  *)
   let rec aux count_blue count_red l =
     match l with
       [] ->
