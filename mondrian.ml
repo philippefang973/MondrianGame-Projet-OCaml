@@ -1,5 +1,16 @@
 open Arbre_bsp
+open Sat_solver
 open Graphics
+
+module Variables = struct
+  type t = bsp * color
+  let compare c1 c2 =
+    let (_,b) = c1 and (_,b') = c2 in
+    if b=b' then 0 else if b=rgb 150 0 0 then 1 else -1
+end
+
+module Sat = Sat_solver.Make(Variables)
+
 
 let config_initial config_final =
   let rec aux bsp =
@@ -98,7 +109,13 @@ let main () =
   let jeuAffiche = ref !jeuCourant in
   open_graph (" 700x700");
   set_window_title "Mondrian";
+  set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
   let run = ref true and canPlay= ref true in
+  let (u1,v1) = (text_size "Solution")
+  and (u2,v2) = (text_size "Extension")
+  and (u3,v3) = (text_size "Quitter")
+  and (u4,v4) = (text_size "Recommencer") in
+
   while !run do
   (* boucle d'interaction *)
     while !run && not ((is_full !jeuCourant) && (check_current !jeuCourant !jeuFin)) do
@@ -109,17 +126,17 @@ let main () =
     synchronize();
 
     (* Afficher options *)
-    set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
-    let
-      (u1,v1) = (text_size "Solution") and
-      (u2,v2) = (text_size "Extension") and
-      (u3,v3) = (text_size "Quitter") in
     moveto 0 0;
     if !canPlay then
       begin
       draw_string "Solution";
       moveto ((current_x())+20) 0;
       draw_string "Extension";
+      moveto ((current_x())+20) 0;
+      end
+    else
+      begin
+      draw_string "Recommencer";
       moveto ((current_x())+20) 0;
       end;
     draw_string "Quitter";
@@ -129,20 +146,30 @@ let main () =
     let x = e.mouse_x and y = e.mouse_y in
 
     if !canPlay then
-      if e.mouse_x>=0 && e.mouse_x<=u1 && e.mouse_y>=0 && e.mouse_y<=20
+      if x>=0 && x<=u1 && y>=0 && y<=20
       then begin
         jeuAffiche := !jeuFin;
         canPlay := false
       end
-      else if e.mouse_x>=(u1+20) && e.mouse_x<=(u1+u2+20) && e.mouse_y>=0 && e.mouse_y<=20
+      else if x>=(u1+20) && x<=(u1+u2+20) && y>=0 && y<=20
       then canPlay := false
-      else if e.mouse_x>=(u1+u2+20) && e.mouse_x<=(u1+u2+u3+20) && e.mouse_y>=0 && e.mouse_y<=20
+      else if x>=(u1+u2+20) && x<=(u1+u2+u3+20) && y>=0 && y<=20
       then run := false
-      else begin
-        jeuCourant := click_set_color !jeuCourant x y;
-        jeuAffiche := !jeuCourant
+      else
+        begin
+          jeuCourant := click_set_color !jeuCourant x y;
+          jeuAffiche := !jeuCourant
+        end
+    else if x>=0 && x<=u4 && y>=0 && y<=20
+    then
+      begin
+        jeuFin := (random_bsp 700 700 depth);
+        jeuCourant := (config_initial !jeuFin);
+        jeuAffiche := !jeuCourant;
+        canPlay := true
       end
-    else if e.mouse_x>=0 && e.mouse_x<=u3 && e.mouse_y>=0 && e.mouse_y<=20 then run:=false
+    else if x>=(u4+20) && x<=(u3+u4+20) && y>=0 && y<=20
+    then run:=false
     done;
 
     (* Afficher fin du jeu*)
@@ -151,27 +178,24 @@ let main () =
         clear_graph();
         set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
         moveto ((size_x())/10) ((size_y())/2);
-        set_color black;
         draw_string "Felicitations!";
-        moveto ((size_x())/10) ((size_y())/5);
+        set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
+        moveto 0 0;
         draw_string "Recommencer";
-        moveto ((size_x())/10) ((size_y())/10);
+        moveto ((current_x())+20) 0;
         draw_string "Quitter";
-        let (u,v) = text_size "Recommencer" and (u',v') = text_size "Quitter" in
-
-        (* Quitter ou Recommencer*)
+        moveto 0 0;
         let e = wait_next_event [Button_down] in
-        if e.mouse_x>=(size_x()/10) && e.mouse_x<=(size_y()/10+u)
-        && e.mouse_y>=(size_y()/5) && e.mouse_y<=(size_y()/5+v)
+        let x = e.mouse_x and y = e.mouse_y in
+        if x>=0 && x<=u4 && y>=0 && y<=20
         then
-         begin
-         jeuFin := (random_bsp 700 700 depth);
-         jeuCourant := (config_initial !jeuFin);
-         jeuAffiche := !jeuCourant
-         end
-        else if e.mouse_x>=(size_x()/10) && e.mouse_x<=(size_y()/10+u')
-            && e.mouse_y>=(size_y()/10) && e.mouse_y<=(size_y()/10+v')
-            then run := false;
+          begin
+           jeuFin := (random_bsp 700 700 depth);
+           jeuCourant := (config_initial !jeuFin);
+           jeuAffiche := !jeuCourant;
+          end
+        else if x>=(u4+20) && x<=(u3+u4+20) && y>=0 && y<=20
+        then run:=false
       end
   done;
 
