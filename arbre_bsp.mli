@@ -9,7 +9,6 @@ type bsp =
 R of color option
   | L of label * bsp * bsp
 
-
 (* Génère aléatoirement une configuration finale en bsp
    avec dimensions fenetre et la profondeur maximale du bsp en parametre*)
 val random_bsp : int -> int -> int -> bsp
