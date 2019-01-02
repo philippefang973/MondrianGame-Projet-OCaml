@@ -18,11 +18,7 @@ let random_int mn mx=
 ;;
 
 let random_bsp width height depth_max =
-  assert(depth_max>=0);
-  (* depth: profondeur généré, parite: type de ligne,
-     xmin et xmax: bornes de generation coord (lignes verticales)
-     ymin et ymax: bornes de generation coord (lignes horizontales)
-  *)
+assert(depth_max>=0);
 let rec random_noeud depth parite xmin xmax ymin ymax =
   if depth=0 || xmin>xmax || ymin>ymax then if (Random.bool()) then
       R(Some (rgb 0 0 150)) else R(Some (rgb 150 0 0))
@@ -40,37 +36,30 @@ in random_noeud depth_max true size (width-size) size (height-size)
 ;;
 
 let rectangles_from_line bsp parite =
-  (*bsp_tmp: noeud courant, parite: type de ce noeud,
-    b: compter les rectangles de fils gauche ou de fils droit
-  *)
-  let rec aux bsp_tmp parite_tmp b =
+  let rec aux bsp_tmp parite_tmp leaf =
     match bsp_tmp with
       R(a) -> [R(a)]
     | L(v,g,d) ->
       if parite_tmp then
-        if b then (aux d (not parite_tmp) b)
-        else(aux g (not parite_tmp) b)
-      else (aux g (not parite_tmp) b)@(aux d (not parite_tmp) b)
+        if leaf then (aux d (not parite_tmp) leaf)
+        else (aux g (not parite_tmp) leaf)
+      else (aux g (not parite_tmp) leaf)@(aux d (not parite_tmp) leaf)
   in match bsp with
     L(v,g,d) ->
     if parite then (aux g (not parite) true)@(aux d (not parite) false)
     else  (aux g parite true)@(aux d parite false)
   | _ -> [bsp]
 
-let line_color line parite=
-  (* count_blue: nombre de rect. bleus, count_red: nombre de rect. rouges
-  l: listes des rectangles en contact de la ligne
-  *)
+let line_color line parite =
   let rec aux count_blue count_red l =
     match l with
-      [] ->
+    R(Some(a))::v ->
+    if a = rgb 0 0 150 then aux (count_blue+1) count_red v
+    else aux count_blue (count_red+1) v
+    | _ ->
       if count_blue>count_red then rgb 0 0 255
       else if count_blue<count_red then rgb 255 0 0
       else rgb 200 0 200
-    | R(Some(a))::v ->
-    if a = rgb 0 0 150 then aux (count_blue+1) count_red v
-    else aux count_blue (count_red+1) v
-    | _::v -> aux count_blue count_red v
   in match line with
     L(v,g,d) ->
     if not (v.colored) then black

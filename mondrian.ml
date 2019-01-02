@@ -3,31 +3,13 @@ open Sat_solver
 open Graphics
 
 module Variables = struct
-  type t = color * bsp
-  let compare c1 c2 = if c1 > c2 then 1 else if c1 = c2 then 0 else -1
+  type t = int * bool
+  let compare x y = if x>y then 1 else if x==y then 0 else -1
 end
 
 module Sat = Sat_solver.Make(Variables)
 
-let fnc_rect_color list_rect =
-  let rec at_least tmp res =
-      match tmp with
-        [] -> res
-        | a::v -> at_least v ([(true,(rgb 150 0 0,a));(true,(rgb 0 0 150,a))]::res)
-    in
-  let rec at_most tmp res =
-    match tmp with
-      [] -> res
-    | a::v -> at_most v ([(false,(rgb 150 0 0,a));(false,(rgb 0 0 150,a))]::res)
-    in (at_least list_rect [])@(at_most list_rect [])
-
-let fnc_line_color list_rect line parite red blue =
-  match line with R(_) -> failwith "Line required"
-  | L(l,_,_) ->
-    let c = line_color line parite in
-    let fnc_rect = fnc_rect_color list_rect in
-    if not l.colored then [(true,(c,line))]::fnc_rect
-    else fnc_rect
+let affectation bsp = []
 
 let config_initial config_final =
   let rec aux bsp =
@@ -121,11 +103,12 @@ let main () =
   let depth = read_int() in
 
   (* Creation fenetre*)
-  let jeuFin = ref (random_bsp 700 700 depth) in
+  let jeuFin = ref (random_bsp 700 680 depth) in
   let jeuCourant = ref (config_initial !jeuFin) in
   let jeuAffiche = ref !jeuCourant in
   open_graph (" 700x700");
   set_window_title "Mondrian";
+
   set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
   let run = ref true and canPlay= ref true in
   let (u1,v1) = (text_size "Solution")
@@ -169,7 +152,17 @@ let main () =
         canPlay := false
       end
       else if x>=(u1+20) && x<=(u1+u2+20) && y>=0 && y<=20
-      then canPlay := false
+      then begin
+        let fnc = affectation !jeuCourant in
+        match (Sat.solve fnc) with
+          Some(a) ->
+          (draw_string "Extension possible";
+          canPlay := false;
+           print_endline "ye")
+        | None ->
+          (draw_string "Pas d'extension";
+           canPlay := false; print_endline "no")
+      end
       else if x>=(u1+u2+20) && x<=(u1+u2+u3+20) && y>=0 && y<=20
       then run := false
       else
