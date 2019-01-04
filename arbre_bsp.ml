@@ -24,7 +24,8 @@ let random_int mn mx=
 ;;
 
 let random_bsp width height depth_max =
-assert(depth_max>=0);
+  assert(depth_max>=0);
+  (* les x et y sont les bornes de generation des coordonnées *)
 let rec random_noeud depth parite xmin xmax ymin ymax =
   if depth=0 || xmin>xmax || ymin>ymax then if (Random.bool()) then
       R(Some blue_rect) else R(Some red_rect)
@@ -42,6 +43,8 @@ in random_noeud depth_max true size (width-size) size (height-size)
 ;;
 
 let rectangles_from_line bsp parite =
+  (* rleaf indique le type de feuille commun, défini depuis la racine
+     et fleaf la position du noeud par rapport a father*)
   let rec aux bsp_tmp parite_tmp rleaf father fleaf=
     match bsp_tmp with
       R(a) -> [(a,father,fleaf)]
@@ -59,6 +62,7 @@ let rectangles_from_line bsp parite =
   | _ -> failwith "L type required"
 
 let line_color line parite =
+  (* les count determineront la couleur de la ligne *)
   let rec aux count_blue count_red l =
     match l with
       ((Some a),_,_)::v ->

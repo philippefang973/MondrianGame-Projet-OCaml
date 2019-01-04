@@ -23,8 +23,8 @@ let config_initial config_final =
   in aux config_final
 ;;
 
+(* verifie si tous les rectangles sont coloriés *)
 let rec is_full bsp =
-    (* verifie que tous les rectangles sont coloriés *)
     match bsp with
       L(l,g,d) -> (is_full g) && (is_full d)
     | R(None) -> false
@@ -32,7 +32,6 @@ let rec is_full bsp =
 ;;
 
 let check_current bsp1 bsp2 =
-  (* verifie le coloriage de la configuration courante *)
   let rec aux tmp1 tmp2 parite=
     match tmp1,tmp2 with
       L(l,g,d),L(l',g',d') ->
@@ -45,6 +44,7 @@ let check_current bsp1 bsp2 =
 ;;
 
 let draw_current_bsp bsp1 bsp2 =
+  (* les x et y delimitent la zone de tracé d'un noeud *)
   let rec aux tmp1 tmp2 parite xmin xmax ymin ymax =
     match tmp1,tmp2 with
       L({coord=c;colored=b},g,d),L(l,g',d') ->
@@ -71,12 +71,10 @@ let draw_current_bsp bsp1 bsp2 =
       end
     | _ -> ()
   in aux bsp1 bsp2 true 0 (size_x()-1) 20 (size_y()-1);
-  moveto 0 20;
-  set_color black;
-  lineto (size_x()-1) 20
 ;;
 
 let click_set_color bsp x y=
+  (* les x et y delimitent un rectangle qui contient les coordonnées du clique*)
   let rec aux tmp parite xmin xmax ymin ymax =
     match tmp with
       L({coord=c;colored=b},g,d)->
@@ -101,6 +99,7 @@ let click_set_color bsp x y=
 ;;
 
 let modelisation bsp1 bsp2 =
+  (* liste les clauses unitaires *)
   let rec single_clauses l =
     match l with
       [] -> []
@@ -109,22 +108,26 @@ let modelisation bsp1 bsp2 =
       else [(false,(f,b))]::(single_clauses v)
     | (None,f,b)::v -> [(true,(f,b));(false,(f,b))]::(single_clauses v)
   in
-  let rec all_clauses l b=
+  (* liste toutes les combinaisons de litteraux de même polarité possibles*)
+  let rec all_clauses l pol=
     match l with
         [] -> [[]]
-      | [(_,father,leaf)] -> [[(b,(father,leaf))]]
+      | [(_,father,leaf)] -> [[(pol,(father,leaf))]]
       | (_,father,leaf)::v ->
-        let res = List.map (fun x-> (b,(father,leaf))::x) (all_clauses v b)
-        in [(b,(father,leaf))]::(res@(all_clauses v b))
+        let res = List.map (fun x-> (pol,(father,leaf))::x) (all_clauses v pol)
+        in [(pol,(father,leaf))]::(res@(all_clauses v pol))
   in
+  (* renvoie la CNF=au moins n rectangles rouges parmi m *)
   let at_least n m l  =
     let x = m-n+1 in
     (List.filter (fun l' -> (List.length l')=x) (all_clauses l true))
   in
+  (* renvoie la CNF=au plus n rectangles rouges parmi m *)
   let at_most n m l =
     let x = m-(m-n)+1 in
     (List.filter (fun l' -> (List.length l')=x) (all_clauses l false))
   in
+  (* renvoie la CNF complete d'une ligne selon sa couleur *)
   let init_fnc c l =
     let m = (List.length l) in
     let n = if m mod 2 = 0 then m/2 else m/2+1 in
@@ -143,6 +146,7 @@ let modelisation bsp1 bsp2 =
   in aux bsp1 bsp2 true
 
 let extension_to_bsp solution bsp =
+  (*colorie les rectangles avec la solution du sat solver*)
   let rec set_rect_color tmp x found=
     let (b,(father,leaf)) = x in
     let c = if b then red_rect else blue_rect in
@@ -160,7 +164,7 @@ let extension_to_bsp solution bsp =
       [] -> tmp
     | a::v -> aux v (set_rect_color tmp a false)
   in aux solution bsp
-
+;;
 
 let main () =
 
@@ -168,113 +172,119 @@ let main () =
   print_endline "Choisir profondeur maximale bsp";
   let depth = read_int() in
 
-  (* Creation fenetre*)
+  (* Creation partie*)
+  let run = ref true and state = ref "play" in
   let jeuFin = ref (random_bsp 700 680 depth) in
   let jeuCourant = ref (config_initial !jeuFin) in
   let jeuAffiche = ref !jeuCourant in
+  let extensionList = ref [] in
   open_graph (" 700x700");
   set_window_title "Mondrian";
-
   set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
-  let run = ref true and canPlay= ref true in
   let (u1,v1) = (text_size "Solution")
   and (u2,v2) = (text_size "Extension")
-  and (u3,v3) = (text_size "Quitter")
-  and (u4,v4) = (text_size "Recommencer") in
+  and (u3,v3) = (text_size "Continuer")
+  and (u4,v4) = (text_size "Retourner")
+  and (u5,v5) = (text_size "Recommencer")
+  and (u6,v6) = (text_size "Quitter") in
 
-  while !run do
   (* boucle d'interaction *)
-    while !run && not ((is_full !jeuCourant) && (check_current !jeuCourant !jeuFin)) do
-      (* Afficher jeu*)
-    clear_graph();
-    set_line_width 3;
-    draw_current_bsp !jeuAffiche !jeuFin;
-    synchronize();
+  while !run do
+  clear_graph();
+  set_line_width 3;
+  moveto 0 20;
+  set_color black;
+  lineto (size_x()-1) 20;
 
-    (* Afficher options *)
-    moveto 0 0;
-    if !canPlay then
-      begin
-      draw_string "Solution";
-      moveto ((current_x())+20) 0;
-      draw_string "Extension";
-      moveto ((current_x())+20) 0;
-      end
-    else
-      begin
-      draw_string "Recommencer";
-      moveto ((current_x())+20) 0;
-      end;
-    draw_string "Quitter";
-
-    (* Attendre click souris*)
-    let e = wait_next_event [Button_down] in
-    let x = e.mouse_x and y = e.mouse_y in
-
-    if !canPlay then
-      if x>=0 && x<=u1 && y>=0 && y<=20
-      then begin
+  match !state with
+  "play" -> (
+  draw_current_bsp !jeuAffiche !jeuFin;
+  synchronize();
+  set_color black;
+  moveto 0 0;
+  draw_string "Solution  Extension";
+  let e = wait_next_event [Button_down] in
+  let x = e.mouse_x and y = e.mouse_y in
+  if x>=0 && x<=u1 && y>=0 && y<=v1 then (
         jeuAffiche := !jeuFin;
-        canPlay := false
-      end
-      else if x>=(u1+20) && x<=(u1+u2+20) && y>=0 && y<=20
-      then begin
-        let fnc = modelisation !jeuCourant !jeuFin in
-        match (Sat.solve fnc) with
-          Some(a) ->
-          (jeuAffiche := extension_to_bsp a !jeuCourant;
-           canPlay := false;)
-        | None ->
-          (print_endline "Pas d'extension";
-           canPlay := false;)
-      end
-      else if x>=(u1+u2+20) && x<=(u1+u2+u3+20) && y>=0 && y<=20
-      then run := false
-      else
-        begin
-          jeuCourant := click_set_color !jeuCourant x y;
-          jeuAffiche := !jeuCourant
-        end
-    else if x>=0 && x<=u4 && y>=0 && y<=20
-    then
-      begin
-        jeuFin := (random_bsp 700 700 depth);
-        jeuCourant := (config_initial !jeuFin);
-        jeuAffiche := !jeuCourant;
-        canPlay := true
-      end
-    else if x>=(u4+20) && x<=(u3+u4+20) && y>=0 && y<=20
-    then run:=false
-    done;
+        state := "solution";
+        )
+        else if x>=u1+20 && x<=u1+u2+20 && y>=0 && y<=v2 then (
+        let model = modelisation !jeuCourant !jeuFin in
+        match (Sat.solve model) with
+        Some a -> (state := "available"; extensionList := a)
+        | None -> state := "unavailable"
+        )
+      else (jeuCourant := click_set_color !jeuCourant x y;
+        if (is_full !jeuCourant) && (check_current !jeuCourant !jeuFin)
+        then state := "win" else jeuAffiche := !jeuCourant)
+        )
 
-    (* Afficher fin du jeu*)
-    if !run then
-      begin
-        clear_graph();
-        set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
-        moveto ((size_x())/10) ((size_y())/2);
-        draw_string "Felicitations!";
-        set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
-        moveto 0 0;
-        draw_string "Recommencer";
-        moveto ((current_x())+20) 0;
-        draw_string "Quitter";
-        moveto 0 0;
-        let e = wait_next_event [Button_down] in
-        let x = e.mouse_x and y = e.mouse_y in
-        if x>=0 && x<=u4 && y>=0 && y<=20
-        then
-          begin
-           jeuFin := (random_bsp 700 700 depth);
-           jeuCourant := (config_initial !jeuFin);
-           jeuAffiche := !jeuCourant;
-          end
-        else if x>=(u4+20) && x<=(u3+u4+20) && y>=0 && y<=20
-        then run:=false
-      end
-  done;
+        | "available" -> (
+          set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
+          moveto ((size_x())/10) ((size_y())/2);
+          draw_string "Extension disponible";
+          set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
+          moveto 0 0;
+          draw_string "Continuer Retourner";
+          let e = wait_next_event [Button_down] in
+          let x = e.mouse_x and y = e.mouse_y in
+          if x>=0 && x<=u3 && y>=0 && y<=v3 then (
+            jeuAffiche := extension_to_bsp !extensionList !jeuCourant;
+            state := "solution";
+            )
+            else if x>=u3+20 && x<=u3+u4+20 && y>=0 && y<=v4 then state := "play";
+            )
 
-;;
+            | "unavailable" -> (
+              set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
+              moveto ((size_x())/10) ((size_y())/2);
+              draw_string "Extension indisponible";
+              set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
+              moveto 0 0;
+              draw_string "Retourner";
+              let e = wait_next_event [Button_down] in
+              let x = e.mouse_x and y = e.mouse_y in
+              if x>=0 && x<=u1 && y>=0 && y<=v1 then state := "play";
+              )
 
-let _ = main ()
-;;
+              | "solution" -> (
+                draw_current_bsp !jeuAffiche !jeuFin;
+                synchronize();
+                set_color black;
+                moveto 0 0;
+                draw_string "Recommencer Quitter";
+                let e = wait_next_event [Button_down] in
+                let x = e.mouse_x and y = e.mouse_y in
+                if x>=0 && x<=u5 && y>=0 && y<=v5 then (
+                  jeuFin := (random_bsp 700 700 depth);
+                  jeuCourant := (config_initial !jeuFin);
+                  jeuAffiche := !jeuCourant;
+                  state := "play"
+                  )
+                  else if x>=u5+20 && x<=u5+u6+20 && y>=0 && y<= v6 then run := false
+                  )
+
+                  | "win" -> (
+                    set_font "-*-fixed-medium-r-semicondensed--50-*-*-*-*-*-iso8859-1";
+                    moveto ((size_x())/10) ((size_y())/2);
+                    draw_string "Felicitations!";
+                    set_font "-*-fixed-medium-r-semicondensed--20-*-*-*-*-*-iso8859-1";
+                    moveto 0 0;
+                    draw_string "Recommencer Quitter";
+                    let e = wait_next_event [Button_down] in
+                    let x = e.mouse_x and y = e.mouse_y in
+                    if x>=0 && x<=u5 && y>=0 && y<=v5 then (
+                      jeuFin := (random_bsp 700 700 depth);
+                      jeuCourant := (config_initial !jeuFin);
+                      jeuAffiche := !jeuCourant;
+                      state := "play"
+                      )
+                      else if x>=u5+20 && x<=u5+u6+20 && y>=0 && y<= v6 then run := false
+                      )
+                      | _ -> ()
+                      done;
+                      ;;
+
+                      let _ = main ()
+                      ;;
