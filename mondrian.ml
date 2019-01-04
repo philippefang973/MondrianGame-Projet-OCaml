@@ -131,7 +131,7 @@ let modelisation bsp1 bsp2 =
     let k = (single_clauses l) in
     if c = black then k
     else if c = red_line then k@(at_least n m l)
-    else if c = blue_line then k@(at_most n m l)
+    else if c = blue_line then k@(at_most (n-1) m l)
     else k@((at_least n m l)@(at_most n m l))
   in
   let rec aux tmp1 tmp2 parite =
