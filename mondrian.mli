@@ -1,5 +1,4 @@
 open Arbre_bsp
-open Sat_solver
 
 (* desssine la configuration courante*)
 val draw_current_bsp: bsp -> bsp -> unit

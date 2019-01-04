@@ -4,12 +4,16 @@ open Graphics
 
 module Variables = struct
   type t = int * bool
-  let compare x y = if x>y then 1 else if x==y then 0 else -1
+  let compare x y =
+    let (x1,x2) = x and (y1,y2) = y in
+    if x1>y1 then 1
+    else if x1<y1 then -1
+    else if x2=y2 then 0
+    else if x2=true then 1
+    else -1
 end
 
 module Sat = Sat_solver.Make(Variables)
-
-let affectation bsp = []
 
 let config_initial config_final =
   let rec aux bsp =
@@ -86,15 +90,77 @@ let click_set_color bsp x y=
         aux d (not parite) xmin xmax c ymax)
     | R(Some c)->
       if xmin<=x && ymin<=y && xmax>=x && ymax>=y then
-        if c = rgb 150 0 0 then R(Some(rgb 0 0 150))
+        if c = red_rect then R(Some blue_rect)
         else R(None)
       else tmp
     | R(None) ->
-      if xmin<=x && ymin<=y && xmax>=x && ymax>=y then R(Some(rgb 150 0 0))
+      if xmin<=x && ymin<=y && xmax>=x && ymax>=y then R(Some red_rect)
       else tmp
   in aux bsp true 0 (size_x()-1) 20 (size_y()-1)
 
 ;;
+
+let modelisation bsp1 bsp2 =
+  let rec single_clauses l =
+    match l with
+      [] -> []
+    | (Some a,f,b)::v ->
+      if a=red_rect then [(true,(f,b))]::(single_clauses v)
+      else [(false,(f,b))]::(single_clauses v)
+    | (None,f,b)::v -> [(true,(f,b));(false,(f,b))]::(single_clauses v)
+  in
+  let rec all_clauses l b=
+    match l with
+        [] -> [[]]
+      | [(_,father,leaf)] -> [[(b,(father,leaf))]]
+      | (_,father,leaf)::v ->
+        let res = List.map (fun x-> (b,(father,leaf))::x) (all_clauses v b)
+        in [(b,(father,leaf))]::(res@(all_clauses v b))
+  in
+  let at_least n m l  =
+    let x = m-n+1 in
+    (List.filter (fun l' -> (List.length l')=x) (all_clauses l true))
+  in
+  let at_most n m l =
+    let x = m-(m-n)+1 in
+    (List.filter (fun l' -> (List.length l')=x) (all_clauses l false))
+  in
+  let init_fnc c l =
+    let m = (List.length l) in
+    let n = if m mod 2 = 0 then m/2 else m/2+1 in
+    let k = (single_clauses l) in
+    if c = black then k
+    else if c = red_line then k@(at_least n m l)
+    else if c = blue_line then k@(at_most n m l)
+    else k@((at_least n m l)@(at_most n m l))
+  in
+  let rec aux tmp1 tmp2 parite =
+    match tmp1,tmp2 with
+      L(l,g,d),L(l',g',d') ->
+      (init_fnc (line_color tmp2 parite) (rectangles_from_line tmp1 parite))
+      @((aux g g' (not parite))@(aux d d' (not parite)))
+    | _ -> []
+  in aux bsp1 bsp2 true
+
+let extension_to_bsp solution bsp =
+  let rec set_rect_color tmp x found=
+    let (b,(father,leaf)) = x in
+    let c = if b then red_rect else blue_rect in
+    match tmp with
+      R(None) -> if found then R(Some c) else tmp
+    | L(l,g,d) ->
+      if found then tmp
+      else if l.coord = father then
+        if leaf then L(l,set_rect_color g x true,d) else L(l,g,set_rect_color d x true)
+      else L(l,set_rect_color g x false,set_rect_color d x false)
+    | _ -> tmp
+  in
+  let rec aux l tmp =
+    match l with
+      [] -> tmp
+    | a::v -> aux v (set_rect_color tmp a false)
+  in aux solution bsp
+
 
 let main () =
 
@@ -153,15 +219,14 @@ let main () =
       end
       else if x>=(u1+20) && x<=(u1+u2+20) && y>=0 && y<=20
       then begin
-        let fnc = affectation !jeuCourant in
+        let fnc = modelisation !jeuCourant !jeuFin in
         match (Sat.solve fnc) with
           Some(a) ->
-          (draw_string "Extension possible";
-          canPlay := false;
-           print_endline "ye")
+          (jeuAffiche := extension_to_bsp a !jeuCourant;
+           canPlay := false;)
         | None ->
-          (draw_string "Pas d'extension";
-           canPlay := false; print_endline "no")
+          (print_endline "Pas d'extension";
+           canPlay := false;)
       end
       else if x>=(u1+u2+20) && x<=(u1+u2+u3+20) && y>=0 && y<=20
       then run := false
