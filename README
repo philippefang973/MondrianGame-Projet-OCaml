@@ -1,0 +1,6 @@
+FANG Philippe et XIANG Jiahui
+L3 INFO 3
+
+Pour compiler: "make"
+
+Pour executer: "./run" ou bien "ocamlrun run"
